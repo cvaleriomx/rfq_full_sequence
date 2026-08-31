@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.coverage
+.venv/
+
+# macOS / editors
+.DS_Store
+.idea/
+.vscode/
+
+# Generated RFQ products (regenerate from config + table1.txt)
+outputs/*
+!outputs/.gitkeep
+*.h5
+*.hdf5
+*.pkl
+*.joblib
+particle_data*.csv
+cross_z*.csv
+salida/
+
+# Surrogate example products
+examples/surrogate_coulomb/datos/*
+!examples/surrogate_coulomb/datos/.gitkeep
+examples/surrogate_coulomb/resultados/*
+!examples/surrogate_coulomb/resultados/.gitkeep
+

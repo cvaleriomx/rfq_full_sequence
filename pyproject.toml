@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rfq-pipeline"
+version = "0.1.0"
+description = "Reproducible TRANSOPTR-to-Warp RFQ workflow"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "h5py>=3.10",
+  "matplotlib>=3.8",
+  "numpy>=1.26",
+  "pandas>=2.1",
+]
+
+[project.scripts]
+rfq-pipeline = "rfq_pipeline.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+

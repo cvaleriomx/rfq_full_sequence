@@ -1,0 +1,43 @@
+[project]
+name = "isac2_quick"
+output_dir = "outputs/isac2_quick"
+
+[design]
+source = "data/designs/isac2/table1.txt"
+expected_physical_cells = 87
+expected_length_m = 2.0582
+length_tolerance_m = 0.000001
+
+[vanes]
+points_per_cell = 20
+tip_radius_m = 0.003
+
+[field]
+x_min_m = -0.005
+x_max_m = 0.005
+dx_m = 0.0005
+y_min_m = -0.005
+y_max_m = 0.005
+dy_m = 0.0005
+z_min_m = 0.0
+z_max_m = 2.0582
+dz_m = 0.005
+chunk_z = 64
+symmetry_tolerance = 0.005
+
+[tracking]
+particles = 1000
+random_seed = 2026
+kinetic_energy_ev = 35000.0
+beam_current_a = 0.010
+beam_radius_m = 0.001
+transverse_velocity_sigma_mps = 1000.0
+rf_frequency_hz = 162000000.0
+intervane_voltage_v = 41530.0
+rf_phase_deg = 0.0
+step_fraction_of_field_dz = 1.0
+space_charge = false
+solver_nx = 32
+solver_ny = 32
+solver_nz = 64
+
