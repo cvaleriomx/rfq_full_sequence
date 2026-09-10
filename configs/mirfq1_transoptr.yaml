@@ -1,0 +1,24 @@
+output_dir: outputs/mirfq1_phase_corrected
+beam:
+  initialization: template_twiss
+  longitudinal_full_width_deg: 90.0
+  energy_initial_mev: 0.030
+  energy_target_mev: 1.000
+  energy_tolerance_mev: 0.010  # 1% accepted for this study
+rf:
+  vane_voltage_kv: 55.2
+  tracking_phase_deg: -90.0
+  phi_start_deg: -90.0
+  phi_end_deg: -30.0
+transoptr:
+  runner: optr
+  command: /home/cvalerio/work1/transoptr/transoptr-master/runoptr.sh
+  template_data: configs/mirfq1_transoptr.dat
+iteration:
+  max_cells: 150
+
+phase_control:
+  enabled: true
+  tolerance_deg: 0.15
+  max_trials: 12
+  field_points_per_cell: 16

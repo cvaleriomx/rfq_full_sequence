@@ -1,11 +1,114 @@
 # RFQ pipeline: de TRANSOPTR a Warp
 
+> **Configuración actual de salida:** `mirfq1_sections.yaml` incorpora una
+> apertura suave OM de tres celdas equivalentes hasta el radio inicial del RM
+> (12 mm), entre TC y FF. Sustituye UM. Pasaron las 20 pruebas y TRANSOPTR alcanzó
+> 1.00423 MeV con esta apertura. Ver los resultados y comandos en la
+> [guía actualizada](rfq_transop_design/README.md#cambio-actual-apertura-de-salida-en-tres-celdas-equivalentes).
+
+El ancho longitudinal predeterminado de entrada es **90° completos**
+(`beam.longitudinal_full_width_deg`), equivalente a ±45° respecto al centro del
+bunch. A 30 keV y 162 MHz corresponde a una semilongitud de **1.850 mm**.
+Se aplica al generar nuevas entradas; los resultados guardados conservan sus
+condiciones originales.
+
+La entrada MIRFQ ahora usa `beam.initialization: template_twiss`: aplica los
+Twiss y emitancias x/y/z del bloque de parámetros de `mirfq1_transoptr.dat`.
+Con ancho de 90° fijado, conserva alpha_z y emitancia_z y deriva beta_z.
+Los valores declarados y efectivos se guardan en `beam_input.json`.
+La validación corregida está en `outputs/mirfq1_twiss_validation/`; los
+resultados anteriores a esta corrección usaban las dimensiones del renglón 4.
+
 Repositorio reproducible para organizar la creación, validación y simulación de
 una RFQ. La fuente de verdad del diseño ISAC2 es
 [`data/designs/isac2/table1.txt`](data/designs/isac2/table1.txt), una tabla
 exportada por TRANSOPTR. A partir de ella se derivan los coeficientes del modelo
 de dos términos, los perfiles de las vanes, un mapa de campo externo y la
 configuración de tracking para Warp.
+
+## Secuencia paso a paso para una RFQ nueva
+
+La [guía completa de TRANSOPTR a Warp](rfq_transop_design/README.md) organiza
+el trabajo en dos etapas separadas y una fase posterior de beam dynamics.
+
+### Paso 1. Generar y verificar la RFQ con TRANSOPTR
+
+Desde la raíz del repositorio:
+
+```bash
+conda activate idp
+source /home/cvalerio/work1/transoptr/transoptr-master/activate_transoptr.sh
+python -m pip install -e .
+python -m rfq_transop_design.design_rfq configs/mirfq1_sections.yaml
+```
+
+La instalación editable se necesita la primera vez en ese ambiente. El YAML
+selecciona TRANSOPTR real, entrada de 30 keV, objetivo de 1 MeV y tolerancia del
+1 %. Define RM de 4 celdas, MS, MB, MBA y MA, más transición TC, tramo sin
+modulación con apertura OM y campo de borde aproximado FF. Las secciones son configurables;
+la parametrización inspirada en NFSP todavía no optimiza el haz completo.
+
+Los productos se guardan en `outputs/mirfq1_sections/`. Revisar:
+
+- `phase_validation.json`: aceptación energética y convergencia de fase/campo;
+- `rfq_sections.png`: fase, modulación, enfoque y energía por sección;
+- `vane_geometry.png` y `vane_geometry.csv`: puntas ideales y detalle de salida;
+- `sections.json`, `fort.75` y las tablas: entradas para la siguiente etapa.
+- `beam_optics.png`, `beam_optics.csv`, `beam_phase_advance.csv` y
+  `beam_optics_summary.json`: óptica del haz, máximos por sección y advertencias.
+  Ver [convenciones y regeneración sin simulaciones](rfq_transop_design/README.md#diagnósticos-de-óptica-del-haz-con-transoptr).
+
+El resultado comprobado fue **1.00423 MeV**. La longitud modelada de
+**2.400545 m** incluye 1 cm de campo de borde después del extremo metálico.
+Las 127 celdas del cuerpo, TC, tres segmentos OM y FF generan 132 registros;
+FF no es una celda metálica. Los resultados se regeneraron con la nueva salida.
+
+La [comparación de anchos longitudinales de 180° y 90°](rfq_transop_design/README.md#comparación-de-anchos-longitudinales-de-180-y-90)
+está en `outputs/mirfq1_width_comparison/`: ambos casos dieron **1.00425 MeV**
+y pasaron la verificación, conservando la geometría y carga cero.
+
+### Paso 2. Construir las vanes 3D y preparar el campo en Warp
+
+```bash
+python -m rfq_pipeline --config configs/mirfq1_warp.toml warp-vanes --dry-run
+python -m rfq_pipeline --config configs/mirfq1_warp.toml warp-vanes
+```
+
+Ejecutar en `idp`. `warp-vanes` convierte los perfiles a metros, genera cuatro
+sólidos triangulados cerrados hasta el final de OM, los instala en Warp con
+**±27.6 kV** y resuelve el campo DC con `MultiGrid3D`. FF permanece sin metal.
+La configuración define radio de punta, cuerpo de la vane, dominio y malla.
+
+Los productos se guardan en `outputs/mirfq1_warp/`: `vanes_3d.png`, cuatro mallas
+STL/NPZ, `vanes_manifest.json`, `fieldmap.h5`, `warp_preparation.json` y gráficas
+del campo y su comparación con el diseño. La importación de Warp usa su modo
+serial para evitar MPI en esta ejecución local.
+
+**La construcción y solución DC están implementadas.** El campo regenerado con OM convergió
+con residual de 0.000842 V y tiene una diferencia RMS de aproximadamente 14.15 % frente al diseño de dos términos;
+falta estudiar convergencia y geometría antes de considerar equivalente el
+resultado físico. El comando antiguo `vanes` sigue generando únicamente perfiles.
+La [guía detallada](rfq_transop_design/README.md#paso-2-generar-las-vanes-3d-y-preparar-el-campo-en-warp)
+explica archivos, convenciones y límites.
+
+### Después: beam dynamics
+
+```bash
+python -m rfq_pipeline --config configs/mirfq1_warp.toml track --dry-run
+python -m rfq_pipeline --config configs/mirfq1_warp.toml track
+```
+
+Este TOML carga el mapa DC y las superficies de pérdida de las vanes. Se verificó
+una prueba de inicialización y dos pasos con diez partículas, no el transporte
+completo. El haz de ejemplo tiene corriente cero. La transmisión, las emitancias,
+la convergencia del tracking y la equivalencia con TRANSOPTR siguen pendientes
+de validación física.
+
+## Organización y ejemplo histórico ISAC2
+
+Las instrucciones que siguen describen principalmente el pipeline existente
+sobre `data/designs/isac2/table1.txt`. Sirven para probar generación de tablas,
+perfiles y mapas externos; no sustituyen el paso 2 del diseño nuevo.
 
 Este proyecto separa deliberadamente tres cosas que antes estaban mezcladas:
 
@@ -51,22 +154,21 @@ flowchart LR
 
 | Etapa | Estado en este repositorio |
 |---|---|
-| Ejecutar el diseño dentro de TRANSOPTR | Externo; su salida se versiona como `table1.txt` |
+| Ejecutar el diseño dentro de TRANSOPTR | Diseñador experimental con control de fase en `rfq_transop_design/`; requiere instalación externa de TRANSOPTR |
 | Validar la tabla y convertir a SI | Implementado |
 | Derivar coeficientes de dos términos | Implementado |
 | Generar perfiles de vanes | Implementado |
 | Construir el mapa externo 3D | Implementado |
 | Validar simetrías y graficar el campo | Implementado |
 | Importar un eje calculado por Warp DC y comparar | Implementado |
-| Construcción/solución DC completa de las vanes en Warp | Interfaz pendiente de consolidar; se conserva como una frontera explícita |
+| Construcción y solución DC de vanes en Warp | Implementado con `warp-vanes`; falta convergencia geométrica y validación física |
 | Tracking en el mapa RF externo con Warp | Implementado; debe validarse primero con `--dry-run` |
 | Ejemplo de modelo subrogado de Coulomb | Incluido en `examples/surrogate_coulomb/` |
 
-La etapa DC no se marca artificialmente como terminada: primero hay que
-consolidar y verificar la construcción de conductores de Warp, especialmente
-la orientación de cada vane, la resolución de malla y las condiciones de
-frontera. El comando `compare-fields` ya fija el formato que deberá exportar
-esa etapa.
+La etapa DC construye puntas semicirculares y cuerpos finitos, con tapas planas.
+El residual del solucionador no sustituye la convergencia de malla, el estudio
+de los extremos ni la comparación física con el diseño. `compare-fields` sigue
+disponible para comparaciones del ejemplo histórico.
 
 ## Resultado verificado para `table1.txt`
 
@@ -141,7 +243,7 @@ conda activate rfq_pipeline_core
 Ese ambiente **no incluye Warp**; sirve para las etapas independientes del
 simulador.
 
-## Primera ejecución recomendada
+## Prueba independiente con la tabla histórica ISAC2
 
 La configuración rápida genera un mapa pequeño y permite comprobar el flujo en
 segundos:
@@ -182,7 +284,7 @@ La malla de producción solicitada es aproximadamente `101 × 101 × 4117`. El
 HDF5 almacena los ejes una sola vez y comprime los campos por bloques; no crea
 un `DataFrame` con una fila por punto ni duplica un `pickle` de varios GB.
 
-## Comandos por etapa
+## Comandos del pipeline para la tabla histórica ISAC2
 
 ```bash
 # 1. Tabla y procedencia
@@ -353,7 +455,7 @@ Advertencias del adaptador actual:
 
 - inyecta un solo haz uniforme en disco, no una distribución casada completa;
 - `space_charge = false` por defecto para aislar primero el campo externo;
-- no instala aún la superficie modulada de las vanes como *scraper*;
+- instala las superficies de pérdida cuando `[tracking]` incluye `geometry_manifest`, como en `mirfq1_warp.toml`; las configuraciones históricas no las incluyen;
 - la configuración rápida tiene una malla longitudinal deliberadamente gruesa
   y no debe usarse para resultados físicos finales.
 
@@ -479,4 +581,3 @@ No construya una señal con un número fijo de muestras. El adaptador calcula
 
 Borre sólo la carpeta específica bajo `outputs/` y regenérela. Compare el hash
 de `design_provenance.json` con el de la nueva tabla.
-

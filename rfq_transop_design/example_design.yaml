@@ -1,0 +1,49 @@
+output_dir: rfq_design_output
+
+beam:
+  ion: proton
+  charge_state: 1.0
+  mass_mev: 938.272089
+  energy_initial_mev: 0.030
+  energy_target_mev: 1.180
+  energy_tolerance_mev: 0.001
+
+rf:
+  frequency_hz: 162000000.0
+  vane_voltage_kv: 55.2
+  phi_start_deg: -90.0
+  phi_end_deg: -30.0
+  energy_gain_scale: 1.0
+
+geometry:
+  a_start_cm: 0.40
+  a_end_cm: 0.30
+  m_start: 1.0
+  m_end: 1.8
+  B_start: 3.0
+  B_end: 4.0
+  min_a_cm: 0.05
+  max_a_cm: 2.0
+  min_m: 1.0
+  max_m: 3.0
+  min_B: 0.0
+  max_B: 10.0
+
+transverse_tuning:
+  enabled: false
+
+transoptr:
+  runner: mock
+  command: ./optr
+  timeout_sec: 120
+  template_data:
+  template_sy:
+
+iteration:
+  max_cells: 150
+  stop_policy: energy_target
+  accept_first_crossing: true
+
+final_run:
+  folder: full_rfq_run
+  copy_optr: false

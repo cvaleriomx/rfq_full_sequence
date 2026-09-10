@@ -23,6 +23,7 @@ def tracking_plan(field_path: str | Path, tracking: dict) -> dict:
         y = h5["axes/y_m"][:]
         z = h5["axes/z_m"][:]
         field_shape = h5["fields/ex_vpm_per_v"].shape
+        component_bytes = sum(h5[f"fields/{name}_vpm_per_v"].dtype.itemsize for name in ("ex","ey","ez"))
     speed = proton_speed(float(tracking["kinetic_energy_ev"]))
     dt = float(tracking.get("step_fraction_of_field_dz", 1.0)) * float(z[1] - z[0]) / speed
     travel = float(z[-1] - z[0])
@@ -38,14 +39,15 @@ def tracking_plan(field_path: str | Path, tracking: dict) -> dict:
         "rf_frequency_hz": float(tracking["rf_frequency_hz"]),
         "intervane_voltage_v": float(tracking["intervane_voltage_v"]),
         "rf_cycles_simulated": float(steps * dt * float(tracking["rf_frequency_hz"])),
-        "estimated_field_memory_mib": float(3 * np.prod(field_shape) * 4 / 1024**2),
+        "estimated_field_memory_mib": float(np.prod(field_shape) * component_bytes / 1024**2),
     }
 
 
 def run_warp_tracking(field_path: str | Path, output_path: str | Path, tracking: dict) -> dict:
     """Track one deterministic proton bunch through the external RFQ field."""
     try:
-        import warp as wp
+        from .warp_vanes import load_warp
+        wp = load_warp(bool(tracking.get("serial", True)))
     except ImportError as exc:
         raise RuntimeError(
             "Warp no está disponible. Activa el ambiente warp_2 o usa track --dry-run."
@@ -86,6 +88,11 @@ def run_warp_tracking(field_path: str | Path, output_path: str | Path, tracking:
     wp.top.dt = plan["dt_s"]
     wp.package("w3d")
     wp.generate()
+    scraper = None
+    if tracking.get("geometry_manifest"):
+        from .warp_vanes import load_scraper_conductors
+        conductors = load_scraper_conductors(wp, tracking["geometry_manifest"])
+        scraper = wp.ParticleScraper(conductors, lsavecondid=True)
 
     times = np.arange(plan["steps"] + 2, dtype=float) * wp.top.dt
     signal = float(tracking["intervane_voltage_v"]) * np.cos(
@@ -112,7 +119,10 @@ def run_warp_tracking(field_path: str | Path, output_path: str | Path, tracking:
     angle = 2.0 * np.pi * rng.random(count)
     x = radial * np.cos(angle)
     y = radial * np.sin(angle)
-    z = np.full(count, float(z_axis[0]) + 0.25 * (z_axis[1] - z_axis[0]))
+    injection_z = float(tracking.get("injection_z_m", float(z_axis[0]) + 0.25 * (z_axis[1] - z_axis[0])))
+    if not z_axis[0] < injection_z < z_axis[-1]:
+        raise ValueError("injection_z_m must be inside the field domain")
+    z = np.full(count, injection_z)
     transverse_sigma = float(tracking.get("transverse_velocity_sigma_mps", 0.0))
     vx = rng.normal(0.0, transverse_sigma, count)
     vy = rng.normal(0.0, transverse_sigma, count)
@@ -133,6 +143,7 @@ def run_warp_tracking(field_path: str | Path, output_path: str | Path, tracking:
     }
     np.savez_compressed(output_path, **final)
     summary = dict(plan)
+    summary["vane_scraper_installed"] = scraper is not None
     summary.update({"surviving_particles": int(len(final["x_m"])), "output": str(output_path)})
     output_path.with_suffix(".json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
     return summary

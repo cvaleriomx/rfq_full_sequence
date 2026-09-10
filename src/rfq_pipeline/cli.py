@@ -122,6 +122,8 @@ def build_parser() -> argparse.ArgumentParser:
     track.add_argument("--dry-run", action="store_true", help="Validar parámetros sin importar Warp")
     compare = commands.add_parser("compare-fields", help="Comparar dos términos contra un eje exportado por Warp DC")
     compare.add_argument("warp_axis_csv", help="CSV con z_m y ez_vpm_per_v")
+    vanes3d = commands.add_parser("warp-vanes", help="Construir conductores 3D y resolver campo DC con Warp")
+    vanes3d.add_argument("--dry-run", action="store_true", help="Revisar dimensiones sin importar Warp")
     commands.add_parser("all", help="Ejecutar diseño, coeficientes, vanes, campo y validaciones")
     return parser
 
@@ -140,16 +142,22 @@ def main(argv: list[str] | None = None) -> int:
     }
     if args.command in dispatch:
         result = dispatch[args.command](config)
+    elif args.command == "warp-vanes":
+        from .warp_vanes import prepare_warp
+        result = prepare_warp(config, args.dry_run)
     elif args.command == "track":
         field_path = config.output_dir / "fieldmap.h5"
+        tracking = dict(config.section("tracking"))
+        if tracking.get("geometry_manifest"):
+            tracking["geometry_manifest"] = str(config.resolve(tracking["geometry_manifest"]))
         if args.dry_run:
-            result = tracking_plan(field_path, config.section("tracking"))
+            result = tracking_plan(field_path, tracking)
             (config.output_dir / "tracking_plan.json").write_text(
                 json.dumps(result, indent=2) + "\n", encoding="utf-8"
             )
         else:
             result = run_warp_tracking(
-                field_path, config.output_dir / "particles_final.npz", config.section("tracking")
+                field_path, config.output_dir / "particles_final.npz", tracking
             )
     else:
         result = compare_axis_fields(

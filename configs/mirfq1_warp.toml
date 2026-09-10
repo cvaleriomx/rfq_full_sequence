@@ -1,0 +1,39 @@
+[project]
+name = "mirfq1_warp"
+output_dir = "outputs/mirfq1_warp"
+
+[warp_vanes]
+profiles = "outputs/mirfq1_sections/vane_geometry.csv"
+tip_radius_m = 0.002
+body_radius_m = 0.018
+arc_points = 12
+intervane_voltage_v = 55200.0
+domain_radius_m = 0.022
+z_min_m = -0.010
+# z_max_m omitted: derive it from the new metal endpoint + 2 cm vacuum.
+nx = 48
+ny = 48
+nz = 1160
+solver_tolerance_v = 0.02
+solver_max_iters = 1000
+serial = true
+
+[tracking]
+particles = 1000
+random_seed = 2026
+kinetic_energy_ev = 30000.0
+injection_z_m = 0.0  # Time/phase reference is the vane entrance
+beam_current_a = 0.0
+beam_radius_m = 0.001
+transverse_velocity_sigma_mps = 1000.0
+rf_frequency_hz = 162000000.0
+intervane_voltage_v = 55200.0
+# Warp cos convention vs TRANSOPTR sin convention: phi_Warp = phi_TRANSOPTR - 90 deg.
+rf_phase_deg = -180.0
+step_fraction_of_field_dz = 0.1
+space_charge = false
+solver_nx = 32
+solver_ny = 32
+solver_nz = 128
+geometry_manifest = "outputs/mirfq1_warp/vanes_manifest.json"
+serial = true

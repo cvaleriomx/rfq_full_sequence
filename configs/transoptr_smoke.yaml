@@ -1,0 +1,12 @@
+output_dir: outputs/transoptr_smoke
+beam:
+  energy_initial_mev: 0.030
+  energy_target_mev: 1.180
+rf:
+  vane_voltage_kv: 55.2
+transoptr:
+  runner: optr
+  command: /home/cvalerio/work1/transoptr/transoptr-master/runoptr.sh
+  template_data: configs/transoptr_smoke.dat
+iteration:
+  max_cells: 3
