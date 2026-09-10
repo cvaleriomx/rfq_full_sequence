@@ -67,6 +67,13 @@ La [comparación de anchos longitudinales de 180° y 90°](rfq_transop_design/RE
 está en `outputs/mirfq1_width_comparison/`: ambos casos dieron **1.00425 MeV**
 y pasaron la verificación, conservando la geometría y carga cero.
 
+La [comparación de corriente 0/1 mA](rfq_transop_design/README.md#generar-entrada-rms-y-comparar-0-ma--1-ma)
+usa 0.25 mm·mrad RMS normalizados por plano y un bunch de 90°.
+El comando `python -m rfq_transop_design.compare_current configs/mirfq1_sections.yaml`
+genera las entradas y ejecuta ambas corridas; `--prepare-only` genera solo las entradas.
+Resultados en `outputs/mirfq1_current_comparison/`. Las envolventes superan la
+apertura con esta entrada; la convergencia numérica no demuestra transmisión.
+
 ### Paso 2. Construir las vanes 3D y preparar el campo en Warp
 
 ```bash

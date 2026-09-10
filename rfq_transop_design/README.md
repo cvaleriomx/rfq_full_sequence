@@ -533,3 +533,87 @@ ligeramente por encima de los 0.15° usados al ajustar las celdas. No se reoptim
 la geometría. La entrada efectiva ya muestra emitancias x/y no nulas y permite
 exportar sus Twiss y avances de fase. Estos parámetros aún no equivalen a la
 entrada futura de 1 mA y 0.25 mm·mrad RMS normalizados. Pasaron 29 pruebas.
+
+## Generar entrada RMS y comparar 0 mA / 1 mA
+
+El comando adicional toma la geometría existente y genera dos entradas con
+**0.25 mm·mrad RMS normalizados en cada plano**, sin factor π. Conserva los Twiss
+transversales y alpha_z/emitancia_z del template, y fija el ancho completo del
+elipsoide longitudinal a 90°. No optimiza las celdas.
+
+Solo preparar archivos, sin ejecutar TRANSOPTR:
+
+```bash
+python -m rfq_transop_design.compare_current configs/mirfq1_sections.yaml --prepare-only
+```
+
+Preparar y ejecutar la comparación, desde la raíz:
+
+```bash
+conda activate idp
+source /home/cvalerio/work1/transoptr/transoptr-master/activate_transoptr.sh
+python -m rfq_transop_design.compare_current configs/mirfq1_sections.yaml --current-ma 1 --emittance-n-rms 0.25
+```
+
+`--emittance-n-rms` está en mm·mrad por plano; `--current-ma` es la corriente
+promedio en mA. La salida predeterminada es `outputs/mirfq1_current_comparison/`.
+Cada carpeta `zero_current/` y `with_current/` contiene:
+
+- `template.dat`: parámetros Twiss con emitancias convertidas.
+- `prepared_data.dat`: dimensiones y correlaciones efectivas listas para modo 5.
+- `input_parameters.json`: valores pedidos, carga y conversiones.
+- `config.yaml`: configuración de cada caso.
+- `verification/points_16`, `points_32`, `points_64`: los `data.dat` y
+  `fort.envelope` efectivos, y la verificación de refinamiento.
+- Los diagnósticos completos de fase, apertura y óptica y `beam_envelope_full.csv`.
+
+En la raíz de la comparación: `comparison.csv`, `comparison.json`,
+`refinement_comparison.csv` y `comparison.png`. Las gráficas comparativas de
+este comando muestran tamaños y dispersión energética **RMS**; los CSV nativos de
+óptica conservan su convención de envolvente, identificada como `sqrt5_rms`.
+
+### Conversiones y alcance
+
+Modo 5 espera carga por bunch: `Q = I_promedio / f`. Para 1 mA a 162 MHz,
+Q=6.1728395 pC. Se supone un bunch por período y toda la corriente dentro de él.
+Esto modela un haz ya agrupado de 90°, no la captura del haz continuo original.
+
+En modo 5 las dimensiones nativas son sqrt(5) veces las RMS y las emitancias
+nativas son cinco veces las RMS geométricas. Se usa:
+
+`emitancia_nativa_cm_rad = 5 * emitancia_normalizada_RMS_mm_mrad * 1e-4 / (beta*gamma)`.
+
+Los dos casos tienen exactamente la misma matriz inicial; únicamente cambia la
+carga. Se verifican las emitancias iniciales directamente en `fort.envelope` y la
+carga en el `data.dat` usado. La emitancia longitudinal sigue siendo la geométrica
+nativa del template. No se vuelve a interpretar ese valor como normalizado RMS.
+
+Se encontró en el RFQ.f instalado que QSC usaba BNCHARGE sin inicializar, en vez
+de CURRENT. La copia local [RFQSC.f](transoptr/RFQSC.f) corrige esa referencia y
+renombra las rutinas. Ambos casos la compilan dentro de su sy.f; el programa
+TRANSOPTR instalado permanece intacto. Su procedencia y licencia están en
+[transoptr/README.md](transoptr/README.md). Usar solo una carga distinta con la
+rutina antigua no garantizaría que realmente se aplicara carga espacial.
+
+### Resultados comprobados
+
+| Magnitud, resolución fina | 0 mA | 1 mA |
+|---|---:|---:|
+| Energía de referencia [MeV] | 1.00420 | 1.00418 |
+| Diferencia energética 32→64 [eV] | 10 | 40 |
+| Dispersión energética RMS a la salida [keV] | 4.177 | 7.464 |
+| Longitud RMS a la salida [mm] | 0.3820 | 0.3243 |
+| Máxima ocupación nativa x | 1.800 | 1.795 |
+| Máxima ocupación nativa y | 1.559 | 1.609 |
+
+Pasaron los criterios de fase y refinamiento de energía. Las diferencias de
+las envolventes 32→64 respecto al máximo de la corrida fina fueron inferiores
+a 0.36 %. Las 31 pruebas del código pasaron y se detectó un efecto no nulo de
+la corriente en las envolventes.
+
+**La envolvente equivalente excede la apertura en ambos casos.** La integración
+no elimina partículas al tocar las vanes y continúa propagando sus momentos:
+los resultados de salida son del modelo de envolventes, no de un haz transmitido
+validado. La matriz inicial de este estudio tiene emitancias diferentes de los
+antiguos ejemplos de 0.003 cm·rad nativos. Esto requiere revisar adaptación y
+contención antes de usar estos resultados como diseño aceptado.

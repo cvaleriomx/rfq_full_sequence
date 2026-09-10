@@ -61,7 +61,7 @@ def write_beam_diagnostics(config, output_dir, source=None):
         'mismatch_status':'not evaluated: no matched reference supplied',
         'tune_depression_status':'not evaluated: requires equivalent finite-current and zero-current optics',
         'beam_acceptance_validated':False, 'warnings':warnings}
-    if report['envelope_convention'] != 'rms':
+    if report['envelope_convention'] not in {'rms','sqrt5_rms'}:
         warnings.append('Envelope RMS convention is unconfirmed; multiplier acts on native TRANSOPTR sizes, not a guaranteed particle percentile.')
     beta_rel = env['beta'].to_numpy()
     gamma = 1 + env.E.to_numpy()/float(config['beam']['mass_mev'])

@@ -423,6 +423,10 @@ c
       return
       end
 """
+    override = config.get('transoptr', {}).get('rfq_source_override')
+    if override:
+        content = content.replace('call rfq(', 'call rfqsc(')
+        content += '\n' + Path(override).read_text()
     path.write_text(content, encoding="utf-8")
 
 
